@@ -1,11 +1,234 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iTunes App</title>
+  <link rel="icon" href="icono.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+    body { background-color: #f4f4f4; color: #222; }
+
+    #splash {
+      background-color: #1e1e1e;
+      color: white;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+    }
+
+    header {
+      padding: 1em;
+      background-color: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 999;
+    }
+
+    input[type="text"], select {
+      width: 90%;
+      margin: 10px auto;
+      display: block;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    #menu {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: white;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid #ddd;
+      padding: 10px 0;
+    }
+
+    #menu div {
+      text-align: center;
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .tab {
+      display: none;
+      padding: 1em;
+    }
+
+    .tab.active {
+      display: block;
+    }
+
+    .result {
+      background: white;
+      margin: 10px;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .result img {
+      height: 50px;
+      width: 50px;
+      border-radius: 5px;
+    }
+
+    .btn {
+      background-color: #41B3A2;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+
+    #formulario input, #formulario select {
+      width: 90%;
+      margin: 8px auto;
+      display: block;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+  </style>
 </head>
 <body>
-    <p>Codgio en gestión</p>
+
+  <!-- Splash -->
+  <div id="splash">🎵 Bienvenido a iTunesApp</div>
+
+  <!-- Encabezado -->
+  <header>
+    <input type="text" id="searchInput" placeholder="Buscar música...">
+    <select id="filtro">
+      <option value="all">Todo</option>
+      <option value="music">Música</option>
+      <option value="podcast">Podcast</option>
+      <option value="movie">Películas</option>
+    </select>
+  </header>
+
+  <!-- Contenido -->
+  <div class="tab active" id="home">Bienvenido a la app estilo iTunes</div>
+  <div class="tab" id="buscar">
+    <div id="results"></div>
+  </div>
+  <div class="tab" id="favoritos">
+    <h2>Favoritos</h2>
+    <div id="listaFavs"></div>
+  </div>
+  <div class="tab" id="registro">
+    <h2>Registro de usuario</h2>
+    <form id="formulario">
+      <input type="text" placeholder="Nombre completo" required>
+      <input type="email" placeholder="Correo electrónico" required>
+      <input type="password" placeholder="Contraseña" required>
+      <input type="text" placeholder="Ciudad" required>
+      <input type="text" placeholder="País" required>
+      <input type="text" placeholder="Teléfono" required>
+      <select required>
+        <option value="">Seleccione su género</option>
+        <option value="M">Masculino</option>
+        <option value="F">Femenino</option>
+        <option value="O">Otro</option>
+      </select>
+      <input type="submit" class="btn" value="Registrar">
+    </form>
+  </div>
+
+  <!-- Menú inferior -->
+  <div id="menu">
+    <div onclick="mostrarTab('home')">🏠<br>Inicio</div>
+    <div onclick="mostrarTab('buscar')">🔍<br>Buscar</div>
+    <div onclick="mostrarTab('favoritos')">⭐<br>Favoritos</div>
+    <div onclick="mostrarTab('registro')">👤<br>Perfil</div>
+  </div>
+
+  <!-- JS -->
+  <script>
+    // Splash
+    setTimeout(() => {
+      document.getElementById('splash').style.display = 'none';
+    }, 2000);
+
+    // Tabs
+    function mostrarTab(id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // Buscar en API de iTunes
+    document.getElementById('searchInput').addEventListener('input', async function () {
+      const query = this.value;
+      const filtro = document.getElementById('filtro').value;
+      if (query.length < 3) return;
+
+      let tipo = filtro === "all" ? "" : `&entity=${filtro}`;
+      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}${tipo}&limit=10`);
+      const data = await res.json();
+
+      const results = document.getElementById('results');
+      results.innerHTML = "";
+      data.results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'result';
+        div.innerHTML = `
+          <img src="${item.artworkUrl60}">
+          <div style="flex:1; margin-left:10px;">
+            <b>${item.trackName || item.collectionName}</b><br>
+            ${item.artistName}
+          </div>
+          <button class="btn" onclick='agregarFavorito(${JSON.stringify(item)})'>⭐</button>
+          <audio controls src="${item.previewUrl}" style="height:30px;"></audio>
+        `;
+        results.appendChild(div);
+      });
+    });
+
+    // Favoritos en LocalStorage
+    function agregarFavorito(item) {
+      let favs = JSON.parse(localStorage.getItem("favoritos") || "[]");
+      favs.push(item);
+      localStorage.setItem("favoritos", JSON.stringify(favs));
+      alert("Agregado a favoritos");
+    }
+
+    function mostrarFavoritos() {
+      let favs = JSON.parse(localStorage.getItem("favoritos") || "[]");
+      const cont = document.getElementById("listaFavs");
+      cont.innerHTML = "";
+      favs.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'result';
+        div.innerHTML = `
+          <img src="${item.artworkUrl60}">
+          <div style="flex:1; margin-left:10px;">
+            <b>${item.trackName || item.collectionName}</b><br>${item.artistName}
+          </div>
+          <button class="btn" onclick="eliminarFavorito(${idx})">❌</button>
+        `;
+        cont.appendChild(div);
+      });
+    }
+
+    function eliminarFavorito(idx) {
+      let favs = JSON.parse(localStorage.getItem("favoritos") || "[]");
+      favs.splice(idx, 1);
+      localStorage.setItem("favoritos", JSON.stringify(favs));
+      mostrarFavoritos();
+    }
+
+    // Mostrar favoritos al abrir
+    document.getElementById('favoritos').addEventListener('click', mostrarFavoritos);
+  </script>
+
 </body>
 </html>
