@@ -2,16 +2,28 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>iTunes Web App</title>
   <!-- Fuente Roboto -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      /* safe-area support */
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
     /* Reset & Base */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Roboto', sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; height: 100vh; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #000;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding-bottom: var(--safe-bottom);
+    }
 
     /* Tab Bar Superior */
     .tab-bar {
@@ -20,10 +32,11 @@
       background: #111;
       position: fixed;
       top: 0;
+      left: 0;
       width: 100%;
-      z-index: 20;
       height: 50px;
       align-items: center;
+      z-index: 20;
     }
     .tab-bar button {
       flex: 1;
@@ -46,9 +59,9 @@
       margin-top: 50px;
       padding: 10px;
       overflow-y: auto;
-      padding-bottom: 70px; /* espacio para menú inferior */
+      /* espacio para menú inferior + safe-area */
+      padding-bottom: calc(50px + var(--safe-bottom) + 10px);
     }
-
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -96,7 +109,7 @@
       border-radius: 0 4px 4px 0;
     }
 
-    /* Menú inferior estilo iTunes (igual a Tab Bar) */
+    /* Menú inferior estilo iTunes */
     .bottom-nav {
       display: flex;
       overflow-x: auto;
@@ -105,9 +118,10 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      z-index: 20;
-      height: 50px;
+      height: calc(50px + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
       align-items: center;
+      z-index: 20;
     }
     .bottom-nav button {
       flex: 1;
@@ -123,7 +137,6 @@
       color: #fff;
       border-top: 2px solid #1DB954;
     }
-
   </style>
 </head>
 <body>
@@ -196,21 +209,20 @@
   <script>
     const API_BASE = 'https://itunes.apple.com';
 
-    // Pestañas superiores
+    // Manejo de pestañas
     const tabs = document.querySelectorAll('.tab-bar button');
     const contents = document.querySelectorAll('.tab-content');
     tabs.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.tab)));
     function setActiveTab(tabId) {
       tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
       contents.forEach(c => c.classList.toggle('active', c.id === tabId));
-      // Sincronizar menú inferior
       document.querySelectorAll('.bottom-nav button').forEach(nav => nav.classList.toggle('active', nav.dataset.nav === tabId));
     }
 
     // Menú inferior
     document.querySelectorAll('.bottom-nav button').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.nav)));
 
-    // Fetch y renderizado genérico
+    // Fetch y renderizado
     async function fetchAndRender(endpoint, containerId, params = {}) {
       const url = new URL(`${API_BASE}${endpoint}`);
       Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
@@ -232,50 +244,36 @@
       container.querySelectorAll('.favorite-btn').forEach((btn, idx) => btn.addEventListener('click', () => addToFavorites(results[idx])));
     }
 
-    // Carga inicial
     window.addEventListener('DOMContentLoaded', () => {
-      fetchAndRender('/search', 'home-list',   { term: 'top songs',    media: 'music',    limit: 20 });
-      fetchAndRender('/search', 'music-list',  { term: 'pop',          media: 'music',    limit: 20 });
-      fetchAndRender('/search', 'movies-list', { term: 'drama',        media: 'movie',    limit: 20 });
-      fetchAndRender('/search', 'tones-list',  { term: 'ringtone',     entity: 'ringtone',limit: 20 });
-      fetchAndRender('/search', 'charts-list', { term: 'top',          media: 'music',    limit: 20 });
+      fetchAndRender('/search', 'home-list',   { term: 'top songs', media: 'music', limit: 20 });
+      fetchAndRender('/search', 'music-list',  { term: 'pop',       media: 'music', limit: 20 });
+      fetchAndRender('/search', 'movies-list', { term: 'drama',     media: 'movie', limit: 20 });
+      fetchAndRender('/search', 'tones-list',  { term: 'ringtone',entity: 'ringtone',limit: 20 });
+      fetchAndRender('/search', 'charts-list', { term: 'top',       media: 'music', limit: 20 });
       renderFavorites();
     });
 
-    // Buscador con debounce
+    // Buscador
     const searchInput = document.getElementById('search-input');
     const filterSelect = document.getElementById('media-filter');
     let debounce;
     [searchInput, filterSelect].forEach(el => el.addEventListener('input', () => {
       clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        fetchAndRender('/search', 'music-list', { term: searchInput.value.trim(), media: filterSelect.value, limit: 20 });
-      }, 400);
+      debounce = setTimeout(() => fetchAndRender('/search','music-list',{term:searchInput.value.trim(),media:filterSelect.value,limit:20}),
+      400);
     }));
 
     // Favoritos
     function addToFavorites(item) {
-      const favs = JSON.parse(localStorage.getItem('favs') || '[]');
-      if (!favs.some(f => f.trackId === item.trackId)) {
-        favs.push(item);
-        localStorage.setItem('favs', JSON.stringify(favs));
-        renderFavorites();
-      }
+      const favs = JSON.parse(localStorage.getItem('favs')||'[]');
+      if (!favs.some(f=>f.trackId===item.trackId)) { favs.push(item); localStorage.setItem('favs',JSON.stringify(favs)); renderFavorites(); }
     }
     function renderFavorites() {
-      const favs = JSON.parse(localStorage.getItem('favs') || '[]');
-      const list = document.getElementById('favorites-list');
-      if (!favs.length) {
-        list.innerHTML = '<p style="color:#888; text-align:center;">Aún no tienes favoritos</p>';
-        return;
-      }
-      list.innerHTML = favs.map(item => `
-        <div class="item">
-          <img src="${item.artworkUrl100}" alt="${item.trackName || item.collectionName}" />
-          <p>${item.trackName || item.collectionName}</p>
-          ${item.previewUrl ? `<audio controls src="${item.previewUrl}"></audio>` : ''}
-        </div>
-      `).join('');
+      const favs=JSON.parse(localStorage.getItem('favs')||'[]');
+      const list=document.getElementById('favorites-list');
+      list.innerHTML = favs.length?
+        favs.map(item=>`<div class="item"><img src="${item.artworkUrl100}" alt="${item.trackName||item.collectionName}"/><p>${item.trackName||item.collectionName}</p>${item.previewUrl?`<audio controls src="${item.previewUrl}"></audio>`:''}</div>`).join(''):
+        '<p style="color:#888;text-align:center;">Aún no tienes favoritos</p>';
     }
   </script>
 </body>
