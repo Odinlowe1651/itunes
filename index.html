@@ -118,24 +118,23 @@
     function setActiveTab(tabId) {
       tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
       contents.forEach(c => c.classList.toggle('active', c.id === tabId));
-      // Sincronizar menú inferior
-      document.querySelectorAll('.bottom-nav .nav-item').forEach(nav => {
-        nav.classList.toggle('active', nav.dataset.nav === tabId);
-      });
+      document.querySelectorAll('.bottom-nav .nav-item').forEach(nav => nav.classList.toggle('active', nav.dataset.nav === tabId));
     }
 
     // Menú inferior
-    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
-      btn.addEventListener('click', () => setActiveTab(btn.dataset.nav));
-    });
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.nav)));
 
-    // Fetch y renderizado genérico
+    // Fetch y renderizado genérico con fallback
     async function fetchAndRender(endpoint, containerId, params = {}) {
       const url = new URL(`${API_BASE}${endpoint}`);
       Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
       const res = await fetch(url);
       const { results } = await res.json();
       const container = document.getElementById(containerId);
+      if (!results || !results.length) {
+        container.innerHTML = '<p style="color:#888; text-align:center;">No hay resultados disponibles</p>';
+        return;
+      }
       container.innerHTML = results.map((item, i) => `
         <div class="item">
           <img src="${item.artworkUrl100}" alt="${item.trackName || item.collectionName}" />
@@ -144,19 +143,16 @@
           ${item.previewUrl ? `<audio controls src="${item.previewUrl}"></audio>` : ''}
         </div>
       `).join('');
-      // Favoritos
-      container.querySelectorAll('.favorite-btn').forEach((btn, idx) => {
-        btn.addEventListener('click', () => addToFavorites(results[idx]));
-      });
+      container.querySelectorAll('.favorite-btn').forEach((btn, idx) => btn.addEventListener('click', () => addToFavorites(results[idx])));
     }
 
-    // Carga inicial
+    // Carga inicial con tonos mejor definidos
     window.addEventListener('DOMContentLoaded', () => {
-      fetchAndRender('/search', 'home-list',   { term: 'top songs',   media: 'music',     limit: 20 });
-      fetchAndRender('/search', 'music-list',  { term: 'pop',         media: 'music',     limit: 20 });
-      fetchAndRender('/search', 'movies-list', { term: 'drama',       media: 'movie',     limit: 20 });
-      fetchAndRender('/search', 'tones-list',  { term: 'alert',       entity: 'ringtone', limit: 20 });
-      fetchAndRender('/search', 'charts-list', { term: 'top',         media: 'music',     limit: 20 });
+      fetchAndRender('/search', 'home-list',   { term: 'top songs',    media: 'music',     limit: 20 });
+      fetchAndRender('/search', 'music-list',  { term: 'pop',          media: 'music',     limit: 20 });
+      fetchAndRender('/search', 'movies-list', { term: 'drama',        media: 'movie',     limit: 20 });
+      fetchAndRender('/search', 'tones-list',  { term: 'ringtone',     entity: 'ringtone', limit: 20 });
+      fetchAndRender('/search', 'charts-list', { term: 'top',          media: 'music',     limit: 20 });
       renderFavorites();
     });
 
@@ -167,15 +163,11 @@
     [searchInput, filterSelect].forEach(el => el.addEventListener('input', () => {
       clearTimeout(debounce);
       debounce = setTimeout(() => {
-        fetchAndRender('/search', 'music-list', {
-          term: searchInput.value.trim(),
-          media: filterSelect.value,
-          limit: 20
-        });
+        fetchAndRender('/search', 'music-list', { term: searchInput.value.trim(), media: filterSelect.value, limit: 20 });
       }, 400);
     }));
 
-    // Funciones Favoritos
+    // Funciones de favoritos
     function addToFavorites(item) {
       const favs = JSON.parse(localStorage.getItem('favs') || '[]');
       if (!favs.some(f => f.trackId === item.trackId)) {
@@ -184,10 +176,13 @@
         renderFavorites();
       }
     }
-
     function renderFavorites() {
       const favs = JSON.parse(localStorage.getItem('favs') || '[]');
       const list = document.getElementById('favorites-list');
+      if (!favs.length) {
+        list.innerHTML = '<p style="color:#888; text-align:center;">Aún no tienes favoritos</p>';
+        return;
+      }
       list.innerHTML = favs.map(item => `
         <div class="item">
           <img src="${item.artworkUrl100}" alt="${item.trackName || item.collectionName}" />
