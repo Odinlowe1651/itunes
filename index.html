@@ -115,7 +115,7 @@
       overflow-x: auto;
       background: #111;
       position: fixed;
-      bottom: 0;
+      bottom: calc(var(--safe-bottom) + 10px);
       left: 0;
       width: 100%;
       height: calc(50px + var(--safe-bottom));
@@ -190,91 +190,3 @@
           <li>Contacto: tu.email@ejemplo.com</li>
           <li>Repositorio: <a href="#" style="color:#1DB954;">GitHub</a></li>
         </ul>
-      </section>
-      <section id="favorites" class="tab-content">
-        <h1>Favoritos</h1>
-        <div class="list" id="favorites-list"></div>
-      </section>
-    </div>
-
-    <!-- Menú inferior estilo iTunes -->
-    <nav class="bottom-nav">
-      <button data-nav="home" class="active">Inicio</button>
-      <button data-nav="music">Música</button>
-      <button data-nav="favorites">Favoritos</button>
-      <button data-nav="info">Info</button>
-    </nav>
-  </div>
-
-  <script>
-    const API_BASE = 'https://itunes.apple.com';
-
-    // Manejo de pestañas
-    const tabs = document.querySelectorAll('.tab-bar button');
-    const contents = document.querySelectorAll('.tab-content');
-    tabs.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.tab)));
-    function setActiveTab(tabId) {
-      tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
-      contents.forEach(c => c.classList.toggle('active', c.id === tabId));
-      document.querySelectorAll('.bottom-nav button').forEach(nav => nav.classList.toggle('active', nav.dataset.nav === tabId));
-    }
-
-    // Menú inferior
-    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.nav)));
-
-    // Fetch y renderizado
-    async function fetchAndRender(endpoint, containerId, params = {}) {
-      const url = new URL(`${API_BASE}${endpoint}`);
-      Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
-      const res = await fetch(url);
-      const { results } = await res.json();
-      const container = document.getElementById(containerId);
-      if (!results || !results.length) {
-        container.innerHTML = '<p style="color:#888; text-align:center;">No hay resultados disponibles</p>';
-        return;
-      }
-      container.innerHTML = results.map((item, i) => `
-        <div class="item">
-          <img src="${item.artworkUrl100}" alt="${item.trackName || item.collectionName}" />
-          <button class="favorite-btn" title="Agregar a favoritos">★</button>
-          <p>${item.trackName || item.collectionName}</p>
-          ${item.previewUrl ? `<audio controls src="${item.previewUrl}"></audio>` : ''}
-        </div>
-      `).join('');
-      container.querySelectorAll('.favorite-btn').forEach((btn, idx) => btn.addEventListener('click', () => addToFavorites(results[idx])));
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      fetchAndRender('/search', 'home-list',   { term: 'top songs', media: 'music', limit: 20 });
-      fetchAndRender('/search', 'music-list',  { term: 'pop',       media: 'music', limit: 20 });
-      fetchAndRender('/search', 'movies-list', { term: 'drama',     media: 'movie', limit: 20 });
-      fetchAndRender('/search', 'tones-list',  { term: 'ringtone',entity: 'ringtone',limit: 20 });
-      fetchAndRender('/search', 'charts-list', { term: 'top',       media: 'music', limit: 20 });
-      renderFavorites();
-    });
-
-    // Buscador
-    const searchInput = document.getElementById('search-input');
-    const filterSelect = document.getElementById('media-filter');
-    let debounce;
-    [searchInput, filterSelect].forEach(el => el.addEventListener('input', () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => fetchAndRender('/search','music-list',{term:searchInput.value.trim(),media:filterSelect.value,limit:20}),
-      400);
-    }));
-
-    // Favoritos
-    function addToFavorites(item) {
-      const favs = JSON.parse(localStorage.getItem('favs')||'[]');
-      if (!favs.some(f=>f.trackId===item.trackId)) { favs.push(item); localStorage.setItem('favs',JSON.stringify(favs)); renderFavorites(); }
-    }
-    function renderFavorites() {
-      const favs=JSON.parse(localStorage.getItem('favs')||'[]');
-      const list=document.getElementById('favorites-list');
-      list.innerHTML = favs.length?
-        favs.map(item=>`<div class="item"><img src="${item.artworkUrl100}" alt="${item.trackName||item.collectionName}"/><p>${item.trackName||item.collectionName}</p>${item.previewUrl?`<audio controls src="${item.previewUrl}"></audio>`:''}</div>`).join(''):
-        '<p style="color:#888;text-align:center;">Aún no tienes favoritos</p>';
-    }
-  </script>
-</body>
-</html>
